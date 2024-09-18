@@ -1,0 +1,53 @@
+version: "3.8"
+
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config_volumn:/config # Ensure this is a file
+      - prometheus_data:/prometheus
+    networks:
+      - monitoring_network
+    command:
+      - "--config.file=/config/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.enable-lifecycle"
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - monitoring_network
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  modbus-poller:
+    build:
+      context: ./modbus-poller
+      dockerfile: Dockerfile
+    ports:
+      - "2112:2112"
+    volumes:
+      - ./config_volumn:/config
+    networks:
+      - monitoring_network
+    restart: unless-stopped
+    command: ["./modbus-poller", "--simulate"] # Specify the executable and the flag
+
+volumes:
+  config_volume:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+networks:
+  monitoring_network:
+    driver: bridge
